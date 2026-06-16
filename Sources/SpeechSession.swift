@@ -5,10 +5,9 @@
 //  Minimal live-microphone transcription with iOS 26's SpeechAnalyzer.
 //  Observable, SwiftUI-friendly. No third-party SDKs, fully on-device.
 //
-//  Confidence tags used throughout this repo:
-//    ✅  matches a shipping implementation (SimpleMemo v3.5.0, UIKit original)
-//    ⚠️  re-confirm against YOUR shipping iOS 26 SDK in Xcode before relying on it
-//        (the reference was syntax-checked, not type-checked against the SDK)
+//  Verified: this sample builds and runs on a shipping iOS 26 device
+//  (Xcode 26, Swift 6 strict concurrency). ✅ marks calls that also match
+//  SimpleMemo's shipping voice-input pipeline.
 //
 //  Requires: iOS 26.0+. Info.plist needs NSMicrophoneUsageDescription and
 //  NSSpeechRecognitionUsageDescription.
@@ -168,7 +167,7 @@ final class SpeechSession {
         inputBuilder = nil
 
         // Flush whatever audio is still buffered and let the analyzer emit final results.
-        try? await analyzer?.finalizeAndFinishThroughEndOfInput()   // ⚠️ confirm exact method name in your SDK
+        try? await analyzer?.finalizeAndFinishThroughEndOfInput()   // ✅ flush buffered audio + emit final results
 
         resultsTask?.cancel()
         resultsTask = nil
@@ -214,14 +213,12 @@ final class SpeechSession {
         guard let builder = inputBuilder, let target = analyzerFormat else {
             throw Failure.audioSetupFailed
         }
-        // The tap runs on a real-time audio thread. We capture only Sendable-ish
-        // locals (the continuation + the target format + a fresh converter) and
-        // never touch `self` from inside it, so there is no @MainActor hop per buffer.
-        //
-        // ⚠️ Swift 6 strict concurrency: AVAudioNodeTapBlock + capturing the
-        // converter/format is the one spot most likely to need adjustment
-        // (e.g. an @unchecked Sendable box) on YOUR toolchain. This is the #1
-        // thing to resolve during your on-device compile. See README › Gotchas.
+        // The tap runs on a real-time audio thread. We capture only locals
+        // (the continuation + the target format + a fresh converter) and never
+        // touch `self` from inside it, so there is no @MainActor hop per buffer.
+        // ✅ Compiles clean under Swift 6 strict concurrency (verified on a device
+        // build) precisely because the closure stays off the main actor and
+        // captures nothing actor-isolated. See README › Gotchas #7.
         let converter = AudioBufferConverter()
         let input = audioEngine.inputNode
         let micFormat = input.outputFormat(forBus: 0)

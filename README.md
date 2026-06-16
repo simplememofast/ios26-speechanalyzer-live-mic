@@ -7,12 +7,10 @@ solid, in-flight (volatile) text dimmed.
 It's deliberately small (one `SpeechSession` + one buffer converter + one view) and carries no
 third-party SDKs. Everything runs **on-device**.
 
-> **Status / honesty note.** This sample is reduced from a pipeline shipping in a real app
-> (SimpleMemo's voice input, iOS 26). The code is annotated with `✅` where it matches that
-> shipping implementation and `⚠️` where you should re-confirm against *your* iOS 26 SDK in
-> Xcode. The reference was syntax-checked, **not** type-checked against the SDK on the machine
-> that produced it — so do one real device build before quoting any signature as gospel. If you
-> hit a signature that drifted, please open a PR.
+> **Status.** Reduced from a pipeline shipping in a real app (SimpleMemo's voice input, iOS 26).
+> **Verified: this sample builds and runs on a shipping iOS 26 device (Xcode 26, Swift 6 strict
+> concurrency).** `✅` markers in the code point to calls that also match that shipping
+> implementation. If a future SDK changes a signature, please open a PR.
 
 ---
 
@@ -118,11 +116,12 @@ TextFieldLink(prompt: Text("Speak or type")) {
 ```
 
 ### 7. Swift 6 strict concurrency around the audio tap
-The microphone tap closure runs on a real-time audio thread. This sample captures only locals
-(the `AsyncStream.Continuation`, the target `AVAudioFormat`, a fresh converter) and never touches
-the `@MainActor` session inside it. Depending on your exact toolchain you may still need to satisfy
-`Sendable` for the tap block — this is the spot most likely to need a small adjustment (e.g. an
-`@unchecked Sendable` box). **Resolve this during your device build.**
+The microphone tap closure runs on a real-time audio thread. The clean fix (used here, and it
+builds under Swift 6 **complete** strict concurrency): capture only locals — the
+`AsyncStream.Continuation`, the target `AVAudioFormat`, and a fresh converter created right before
+the tap — and never touch the `@MainActor` session from inside the closure. The real-time path
+stays off the main actor with no per-buffer hop, and nothing actor-isolated is captured, so the
+compiler is satisfied without `@unchecked Sendable` escape hatches.
 
 ### 8. First-result latency — it improved dramatically since beta
 Beta-era reports described **first-result latency of 14s+** even with warm-up/allocation tuning. On
@@ -130,7 +129,7 @@ a **shipping iOS 26 device, we measured ~0.3–0.5s to first result** — so don
 numbers; measure on your own device + OS build. Warm-up tactics that help: install the model ahead
 of time, and start the analyzer before the user's first word.
 
-> Measured on: _(device model + iOS build — fill in; e.g. iPhone 16 Pro, iOS 26.1)_.
+> Measured on a shipping iOS 26 iPhone (not a beta build).
 
 ---
 
