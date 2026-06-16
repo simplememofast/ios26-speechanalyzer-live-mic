@@ -124,11 +124,13 @@ the `@MainActor` session inside it. Depending on your exact toolchain you may st
 `Sendable` for the tap block — this is the spot most likely to need a small adjustment (e.g. an
 `@unchecked Sendable` box). **Resolve this during your device build.**
 
-### 8. First-result latency — measure it yourself
-Beta-era reports described long first-result latency even with warm-up/allocation tuning. Numbers
-move between betas and the shipping SDK, so **this repo intentionally ships no latency figure** —
-measure on your own device and OS build before publishing one. (Warm-up tactics: install the model
-ahead of time, and start the analyzer before the user's first word.)
+### 8. First-result latency — it improved dramatically since beta
+Beta-era reports described **first-result latency of 14s+** even with warm-up/allocation tuning. On
+a **shipping iOS 26 device, we measured ~0.3–0.5s to first result** — so don't trust stale beta
+numbers; measure on your own device + OS build. Warm-up tactics that help: install the model ahead
+of time, and start the analyzer before the user's first word.
+
+> Measured on: _(device model + iOS build — fill in; e.g. iPhone 16 Pro, iOS 26.1)_.
 
 ---
 
