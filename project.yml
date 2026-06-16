@@ -1,0 +1,34 @@
+# XcodeGen project definition.
+#   brew install xcodegen   # if you don't have it
+#   xcodegen generate       # creates SpeechAnalyzerLiveMic.xcodeproj
+#   open SpeechAnalyzerLiveMic.xcodeproj
+#
+# Prefer not to use XcodeGen? See README › Setup (manual) — it's a 2-minute
+# "new iOS App + drop in Sources/ + add two Info.plist keys" path.
+
+name: SpeechAnalyzerLiveMic
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  SpeechAnalyzerLiveMic:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Sources
+    settings:
+      base:
+        INFOPLIST_FILE: Sources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.SpeechAnalyzerLiveMic
+        TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
