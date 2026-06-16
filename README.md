@@ -155,6 +155,8 @@ This exact pipeline (minus the email/send parts) powers the voice input in
 that emails notes to yourself and auto-appends them to Obsidian — fully on-device, no per-use API
 cost. The spec page documents the on-device behavior and iOS 26 requirement.
 
+**Full write-up:** [Wiring iOS 26's SpeechAnalyzer to a Live Microphone — What the Docs Don't Tell You](https://simplememofast.com/en/blog/ios26-speechanalyzer-live-mic) (the gotchas, latency numbers, and the SFSpeechRecognizer migration table, expanded).
+
 ## License
 
 MIT — see [LICENSE](LICENSE). PRs welcome, especially signature corrections from real device builds.
