@@ -124,12 +124,14 @@ stays off the main actor with no per-buffer hop, and nothing actor-isolated is c
 compiler is satisfied without `@unchecked Sendable` escape hatches.
 
 ### 8. First-result latency — it improved dramatically since beta
-Beta-era reports described **first-result latency of 14s+** even with warm-up/allocation tuning. On
-a **shipping iOS 26 device, we measured ~0.3–0.5s to first result** — so don't trust stale beta
-numbers; measure on your own device + OS build. Warm-up tactics that help: install the model ahead
-of time, and start the analyzer before the user's first word.
-
-> Measured on a shipping iOS 26 iPhone (not a beta build).
+Beta-era reports described **first-result latency of 14s+** on an iPhone 16 **Pro** (iOS 26.0 beta,
+Xcode beta 5), even with warm-up/allocation tuning. On **iPhone 16e (A18, non-Pro — the least
+powerful A18 device) running iOS 26.5, time to first volatile result is ~0.3–0.5s** with the model
+installed and the locale allocated (a warm start). First launch additionally downloads the
+on-device model asset once — show a progress UI for that path. This is a first-party measurement
+(time-to-first-volatile-result), not a controlled benchmark. The likely takeaway: the beta-era
+latency was a preheat/config/beta issue, not a hardware limit — on-device transcription runs
+primarily on the Neural Engine, the same 16-core unit across the whole A18 family.
 
 ---
 
