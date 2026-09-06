@@ -14,3 +14,8 @@ build/
 # Swift Package Manager
 .swiftpm/
 Package.resolved
+
+# Documentation builds
+docs/_build/
+.venv-docs/
+__pycache__/

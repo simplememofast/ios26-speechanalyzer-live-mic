@@ -13,10 +13,31 @@
 //
 
 import AVFoundation
+import Foundation
 
-final class AudioBufferConverter {
+// AVAudioConverter invokes its @Sendable input callback synchronously during
+// convert(to:error:withInputFrom:). Keep the one-shot state behind a lock rather
+// than mutating a captured local. The caller must not mutate the PCM buffer
+// until conversion returns. This wrapper does not make the converter thread-safe.
+private final class OneShotAudioInput: @unchecked Sendable {
+    private let lock = NSLock()
+    private var buffer: AVAudioPCMBuffer?
 
-    enum Failure: Error {
+    init(_ buffer: AVAudioPCMBuffer) { self.buffer = buffer }
+
+    func take() -> AVAudioPCMBuffer? {
+        lock.lock()
+        defer { lock.unlock() }
+        let next = buffer
+        buffer = nil
+        return next
+    }
+}
+
+/// Converts streaming PCM buffers. Use one instance on one audio processing thread.
+public final class AudioBufferConverter {
+
+    public enum Failure: Error {
         case cannotCreateConverter
         case cannotCreateBuffer
         case conversionFailed(NSError?)
@@ -24,12 +45,14 @@ final class AudioBufferConverter {
 
     private var converter: AVAudioConverter?
 
-    func convert(_ buffer: AVAudioPCMBuffer, to format: AVAudioFormat) throws -> AVAudioPCMBuffer {
+    public init() {}
+
+    public func convert(_ buffer: AVAudioPCMBuffer, to format: AVAudioFormat) throws -> AVAudioPCMBuffer {
         let inputFormat = buffer.format
         // Already in the right format → pass through untouched.
         guard inputFormat != format else { return buffer }
 
-        if converter == nil || converter?.outputFormat != format {
+        if converter == nil || converter?.inputFormat != inputFormat || converter?.outputFormat != format {
             converter = AVAudioConverter(from: inputFormat, to: format)
             converter?.primeMethod = .none   // no priming latency for streaming PCM
         }
@@ -42,12 +65,12 @@ final class AudioBufferConverter {
         }
 
         var nsError: NSError?
-        var fed = false
+        let input = OneShotAudioInput(buffer)
         let status = converter.convert(to: output, error: &nsError) { _, statusPtr in
             // Supply the source buffer exactly once, then report "no data now".
-            defer { fed = true }
-            statusPtr.pointee = fed ? .noDataNow : .haveData
-            return fed ? nil : buffer
+            let next = input.take()
+            statusPtr.pointee = next == nil ? .noDataNow : .haveData
+            return next
         }
         guard status != .error else { throw Failure.conversionFailed(nsError) }
         return output

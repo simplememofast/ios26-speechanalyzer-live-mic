@@ -5,14 +5,13 @@
 //  Minimal live-microphone transcription with iOS 26's SpeechAnalyzer.
 //  Observable, SwiftUI-friendly. No third-party SDKs, fully on-device.
 //
-//  Verified: this sample builds and runs on a shipping iOS 26 device
-//  (Xcode 26, Swift 6 strict concurrency). ✅ marks calls that also match
-//  SimpleMemo's shipping voice-input pipeline.
+//  Package validation and device-testing limits are documented in README.md.
 //
 //  Requires: iOS 26.0+. Info.plist needs NSMicrophoneUsageDescription and
 //  NSSpeechRecognitionUsageDescription.
 //
 
+#if os(iOS)
 import Foundation
 import AVFoundation
 import Speech
@@ -20,11 +19,11 @@ import Observation
 
 @MainActor
 @Observable
-final class SpeechSession {
+public final class SpeechSession {
 
-    enum State: Equatable { case idle, preparing, recording }
+    public enum State: Equatable { case idle, preparing, recording }
 
-    enum Failure: Error, Equatable {
+    public enum Failure: Error, Equatable {
         case permissionDenied      // mic or speech authorization missing
         case localeNotSupported    // this language has no on-device model
         case assetUnavailable      // model could not be installed (e.g. offline first run)
@@ -32,16 +31,16 @@ final class SpeechSession {
     }
 
     // Observed by SwiftUI.
-    private(set) var state: State = .idle
-    private(set) var finalizedText = ""
-    private(set) var volatileText = ""
-    private(set) var lastError: Failure?
+    public private(set) var state: State = .idle
+    public private(set) var finalizedText = ""
+    public private(set) var volatileText = ""
+    public private(set) var lastError: Failure?
 
     /// Finalized text plus the in-flight volatile tail. Render `volatileText`
     /// dimmed and `finalizedText` solid for the classic live-caption look.
-    var liveText: String { finalizedText + volatileText }
+    public var liveText: String { finalizedText + volatileText }
 
-    var isRecording: Bool { state == .recording }
+    public var isRecording: Bool { state == .recording }
 
     // MARK: Internals
 
@@ -54,17 +53,17 @@ final class SpeechSession {
     private var analyzerFormat: AVAudioFormat?
     private var resultsTask: Task<Void, Never>?
 
-    init(locale: Locale = .current) {
+    public init(locale: Locale = .current) {
         self.requestedLocale = locale
     }
 
     /// Whether this device + locale can transcribe. Call only after you have
     /// gated on iOS 26 availability at the call site (`if #available(iOS 26, *)`).
-    static func isLocaleSupported(_ locale: Locale = .current) async -> Bool {
-        await SpeechTranscriber.supportedLocale(equivalentTo: locale) != nil   // ✅
+    public static func isLocaleSupported(_ locale: Locale = .current) async -> Bool {
+        await SpeechTranscriber.supportedLocale(equivalentTo: locale) != nil
     }
 
-    func toggle() {
+    public func toggle() {
         switch state {
         case .recording: Task { await stop() }
         case .idle:      Task { await start() }
@@ -74,7 +73,7 @@ final class SpeechSession {
 
     // MARK: Start
 
-    func start() async {
+    public func start() async {
         guard state == .idle else { return }
         state = .preparing
         lastError = nil
@@ -86,13 +85,13 @@ final class SpeechSession {
         }
 
         // 2) Normalize the requested locale to one with an on-device model.
-        guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requestedLocale) else {  // ✅
+        guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requestedLocale) else {
             return fail(.localeNotSupported)
         }
 
         // 3) Build the transcriber module.
         //    .volatileResults streams partial text *while you are still speaking*.
-        let transcriber = SpeechTranscriber(            // ✅ shipping initializer shape
+        let transcriber = SpeechTranscriber(
             locale: locale,
             transcriptionOptions: [],
             reportingOptions: [.volatileResults],
@@ -109,9 +108,9 @@ final class SpeechSession {
         }
 
         // 5) Create the analyzer and discover the PCM format it wants.
-        let analyzer = SpeechAnalyzer(modules: [transcriber])                                 // ✅
+        let analyzer = SpeechAnalyzer(modules: [transcriber])
         self.analyzer = analyzer
-        self.analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])  // ✅
+        self.analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
 
         // 6) Subscribe to results. volatile -> replace tail; final -> append + clear tail.
         finalizedText = ""
@@ -119,9 +118,9 @@ final class SpeechSession {
         resultsTask = Task { [weak self] in
             guard let self else { return }
             do {
-                for try await result in transcriber.results {     // ✅ AsyncSequence of results
-                    let piece = String(result.text.characters)    // ✅ result.text is AttributedString
-                    if result.isFinal {                           // ✅
+                for try await result in transcriber.results {
+                    let piece = String(result.text.characters)
+                    if result.isFinal {
                         self.finalizedText += piece
                         self.volatileText = ""
                     } else {
@@ -134,10 +133,10 @@ final class SpeechSession {
         }
 
         // 7) Wire the input stream, then start the analyzer.
-        let (sequence, builder) = AsyncStream<AnalyzerInput>.makeStream()   // ✅
+        let (sequence, builder) = AsyncStream<AnalyzerInput>.makeStream()
         self.inputBuilder = builder
         do {
-            try await analyzer.start(inputSequence: sequence)               // ✅
+            try await analyzer.start(inputSequence: sequence)
         } catch {
             teardown()
             return fail(.audioSetupFailed)
@@ -157,7 +156,7 @@ final class SpeechSession {
 
     // MARK: Stop
 
-    func stop() async {
+    public func stop() async {
         guard state != .idle else { return }
 
         if audioEngine.isRunning { audioEngine.stop() }
@@ -167,7 +166,7 @@ final class SpeechSession {
         inputBuilder = nil
 
         // Flush whatever audio is still buffered and let the analyzer emit final results.
-        try? await analyzer?.finalizeAndFinishThroughEndOfInput()   // ✅ flush buffered audio + emit final results
+        try? await analyzer?.finalizeAndFinishThroughEndOfInput()
 
         resultsTask?.cancel()
         resultsTask = nil
@@ -183,14 +182,14 @@ final class SpeechSession {
     // MARK: Model asset (the offline-first-run gotcha)
 
     private func ensureModelInstalled(for transcriber: SpeechTranscriber, locale: Locale) async throws {
-        let installed = await Set(SpeechTranscriber.installedLocales.map { $0.identifier(.bcp47) })  // ✅
+        let installed = await Set(SpeechTranscriber.installedLocales.map { $0.identifier(.bcp47) })
         if installed.contains(locale.identifier(.bcp47)) { return }
 
         // Not installed yet: download + install. The model is a SYSTEM-SHARED asset,
         // so it does NOT count against your app's bundle size.
         // On a first run with NO network, this throws — handle it (we surface .assetUnavailable).
-        if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {  // ✅
-            try await request.downloadAndInstall()   // ✅  request has a `.progress` you can show in UI
+        if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+            try await request.downloadAndInstall()
         }
 
         let nowInstalled = await Set(SpeechTranscriber.installedLocales.map { $0.identifier(.bcp47) })
@@ -205,7 +204,7 @@ final class SpeechSession {
         let session = AVAudioSession.sharedInstance()
         // .record + .measurement minimizes input processing/AGC for better recognition;
         // .duckOthers lowers other audio while you dictate.
-        try session.setCategory(.record, mode: .measurement, options: .duckOthers)   // ✅
+        try session.setCategory(.record, mode: .measurement, options: .duckOthers)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
     }
 
@@ -216,9 +215,7 @@ final class SpeechSession {
         // The tap runs on a real-time audio thread. We capture only locals
         // (the continuation + the target format + a fresh converter) and never
         // touch `self` from inside it, so there is no @MainActor hop per buffer.
-        // ✅ Compiles clean under Swift 6 strict concurrency (verified on a device
-        // build) precisely because the closure stays off the main actor and
-        // captures nothing actor-isolated. See README › Gotchas #7.
+        // See README for the converter's single-thread and buffer ownership contract.
         let converter = AudioBufferConverter()
         let input = audioEngine.inputNode
         let micFormat = input.outputFormat(forBus: 0)
@@ -227,7 +224,7 @@ final class SpeechSession {
             // Convert the mic buffer to the format SpeechAnalyzer asked for, THEN yield.
             // Format mismatch here (skipping conversion) is the most common beginner bug.
             guard let converted = try? converter.convert(buffer, to: target) else { return }
-            builder.yield(AnalyzerInput(buffer: converted))   // ✅
+            builder.yield(AnalyzerInput(buffer: converted))
         }
 
         audioEngine.prepare()
@@ -257,13 +254,14 @@ final class SpeechSession {
 
     private static func requestSpeechPermission() async -> Bool {
         await withCheckedContinuation { cont in
-            SFSpeechRecognizer.requestAuthorization { cont.resume(returning: $0 == .authorized) }   // ✅
+            SFSpeechRecognizer.requestAuthorization { cont.resume(returning: $0 == .authorized) }
         }
     }
 
     private static func requestMicPermission() async -> Bool {
         await withCheckedContinuation { cont in
-            AVAudioApplication.requestRecordPermission { cont.resume(returning: $0) }   // ✅ iOS 17+ API
+            AVAudioApplication.requestRecordPermission { cont.resume(returning: $0) }
         }
     }
 }
+#endif
