@@ -93,7 +93,7 @@ xcodebuild -scheme SpeechAnalyzerLiveMic \
 
 The [documentation sources](docs/index.rst) cover setup, API usage, troubleshooting, and verification. Build them with `python -m sphinx -W --keep-going -b html docs docs/_build/html` after installing `docs/requirements.txt` in a virtual environment.
 
-Maintained by the SimpleMemo developer, 株式会社ユリカ. The related app's [voice input page](https://simplememofast.com/en/voice-input/) describes the product context behind this sample. The sample is free and does not require a SimpleMemo account or subscription.
+Maintained by the SimpleMemo developer, 株式会社ユリカ. The related app's [voice input page](https://simplememofast.com/voice-input/) describes the product context behind this sample. The sample is free and does not require a SimpleMemo account or subscription.
 
 ## License
 
