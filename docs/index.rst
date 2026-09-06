@@ -23,7 +23,7 @@ Project context
 
 The sample is maintained by the SimpleMemo developer, 株式会社ユリカ. It explores
 on-device voice capture used in note-taking workflows. The related application's
-`voice input page <https://simplememofast.com/en/voice-input/>`_ explains that
+`voice input page <https://simplememofast.com/voice-input/>`_ explains that
 product context. This package itself does not send emails or store notes, and
 using it requires no SimpleMemo account or subscription.
 
