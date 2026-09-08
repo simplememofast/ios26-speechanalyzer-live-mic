@@ -33,13 +33,14 @@ AudioBufferConverter (iOS and macOS)
 ----------------------------------------
 
 ``convert(_:to:)`` accepts an AVAudioPCMBuffer and an AVAudioFormat. If the formats
-match, it returns the original object. Otherwise it uses AVAudioConverter and
+match, it returns a copy with independent PCM storage. Otherwise it uses AVAudioConverter and
 returns a converted PCM buffer. The cached converter is rebuilt when either the
 input or output format changes.
 
 Use one converter instance on one audio-processing thread. Do not mutate the
-input buffer until conversion returns. The matching-format path preserves
-identity, so the returned value can be the same object as the input.
+input buffer until conversion returns. The result has independent PCM storage
+on both paths, so reusing the input afterwards does not overwrite queued audio.
+Do not mutate the returned buffer while an asynchronous consumer is using it.
 
 For each conversion, a private holder supplies the input buffer once and then
 reports noDataNow. Its lock protects the one-shot state used by the SDK's

@@ -68,16 +68,16 @@ AVAudioEngine microphone tap
 
 ## Concurrency and scope
 
-`SpeechSession` is main-actor isolated. Its audio tap captures local pipeline objects and does not update observable state from the tap callback. `AudioBufferConverter` must be used from one processing thread per instance. Its private one-shot input holder uses a lock and a narrow `@unchecked Sendable` conformance for the SDK's input callback; this does **not** make the converter or PCM buffers generally safe to share across threads. Do not mutate an input buffer until conversion returns.
+`SpeechSession` is main-actor isolated. Its audio tap captures local pipeline objects and does not update observable state from the tap callback. `AudioBufferConverter` must be used from one processing thread per instance. Its private one-shot input holder uses a lock and a narrow `@unchecked Sendable` conformance for the SDK's input callback; this does **not** make the converter or PCM buffers generally safe to share across threads. Do not mutate an input buffer until conversion returns. Both conversion paths return independent PCM storage: matching formats are copied so later reuse of audio-tap storage cannot overwrite queued input. Do not mutate the returned buffer while the analyzer consumes it.
 
 This remains a learning sample. It does not provide a production interruption/background policy, exhaustive microphone lifecycle tests, or a latency guarantee. Review those concerns before integrating it into a shipping app.
 
 ## Validation
 
-On 2026-09-06, the package passed:
+On 2026-09-09, the package passed:
 
 - `swift package dump-package` (valid package manifest).
-- `swift test` on macOS: three converter tests covering passthrough, resampling with nonzero output, and a changed input sample rate.
+- `swift test` on macOS: four converter tests covering independent storage for matching mono float and interleaved stereo integer buffers, resampling with nonzero output, and a changed input sample rate. The two source-reuse tests fail against the previous passthrough implementation.
 - An iOS Simulator library build with Xcode 26.6, Swift 6 mode, without code signing.
 
 These checks do not exercise a physical microphone, model download, speech accuracy, or transcription latency. The package refactor has not been re-tested on a physical iOS device.
