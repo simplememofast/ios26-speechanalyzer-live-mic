@@ -1,13 +1,16 @@
 Validation and development
 ==============================
 
-Checks run for the package refactor
+Checks run for buffer ownership
 ---------------------------------------
 
-On 2026-09-06, Xcode 26.6 built the library for the generic iOS Simulator
-destination in Swift 6 mode without code signing. On macOS, three XCTest cases
-passed: matching-format passthrough, resampling with nonzero output, and a
-changed input sample rate while retaining the same output format.
+On 2026-09-09, Xcode 26.6 built the library for the generic iOS Simulator
+destination in Swift 6 mode without code signing. On macOS, four XCTest cases
+passed: independent storage after reuse of matching mono float and interleaved
+stereo integer inputs, resampling with nonzero output, and a changed input
+sample rate while retaining the same output format. The two source-reuse tests
+fail against the previous implementation, which returned the original object
+when formats matched.
 
 The package manifest is checked with ``swift package dump-package``. Repeat
 local tests with::

@@ -5,8 +5,8 @@
 //  Converts AVAudioEngine mic buffers to the format SpeechAnalyzer requests.
 //  AVAudioEngine's input node format (often 48 kHz, hardware-dependent) usually
 //  does NOT match `SpeechAnalyzer.bestAvailableAudioFormat(...)`, and feeding a
-//  mismatched buffer is the single most common reason "it compiles but no text
-//  ever appears." Always convert.
+//  mismatched buffer can prevent transcription. Convert when formats differ;
+//  otherwise copy the PCM data before handing it to an asynchronous consumer.
 //
 //  This type is single-threaded by contract: create one per capture session and
 //  only call `convert` from the audio tap thread.
@@ -34,7 +34,8 @@ private final class OneShotAudioInput: @unchecked Sendable {
     }
 }
 
-/// Converts streaming PCM buffers. Use one instance on one audio processing thread.
+/// Returns owned PCM data in the requested format, copying when formats already match.
+/// Use one instance on one audio processing thread.
 public final class AudioBufferConverter {
 
     public enum Failure: Error {
@@ -49,8 +50,14 @@ public final class AudioBufferConverter {
 
     public func convert(_ buffer: AVAudioPCMBuffer, to format: AVAudioFormat) throws -> AVAudioPCMBuffer {
         let inputFormat = buffer.format
-        // Already in the right format → pass through untouched.
-        guard inputFormat != format else { return buffer }
+        // Audio-tap storage may be reused after the callback returns. Even when
+        // no format conversion is needed, queued AnalyzerInput must own its PCM.
+        guard inputFormat != format else {
+            guard let output = buffer.copy() as? AVAudioPCMBuffer else {
+                throw Failure.cannotCreateBuffer
+            }
+            return output
+        }
 
         if converter == nil || converter?.inputFormat != inputFormat || converter?.outputFormat != format {
             converter = AVAudioConverter(from: inputFormat, to: format)
